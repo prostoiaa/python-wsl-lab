@@ -1,15 +1,18 @@
-from app.db import crud
+from fastapi import FastAPI
+from app.db.db import Base, engine
+
+from app.api import books, categories
+
+app = FastAPI()
+
+# создаём таблицы при старте
+Base.metadata.create_all(bind=engine)
 
 
-def main():
-    print("\n📚 КАТЕГОРИИ:")
-    for c in crud.get_categories():
-        print(f"{c.id} - {c.title}")
-
-    print("\n📖 КНИГИ:")
-    for b in crud.get_books():
-        print(f"{b.id} - {b.title} | {b.price} | cat={b.category_id}")
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
-if __name__ == "__main__":
-    main()
+app.include_router(categories.router)
+app.include_router(books.router)
