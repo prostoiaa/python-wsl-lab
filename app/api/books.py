@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException, Depends
+from sqlalchemy.orm import Session
+
+from app.db.db import get_db
 from app.db import crud
 from app.schemas import BookCreate
 
@@ -6,21 +9,67 @@ router = APIRouter(prefix="/books", tags=["Books"])
 
 
 @router.get("/")
-def get_books(category_id: int | None = Query(None)):
-    books = crud.get_books()
+def get_books(
+    category_id: int | None = Query(None),
+    db: Session = Depends(get_db)
+):
+    return crud.get_books(db, category_id)
 
-    if category_id:
-        books = [b for b in books if b.category_id == category_id]
 
-    return books
+@router.get("/{book_id}")
+def get_book(book_id: int, db: Session = Depends(get_db)):
+    book = crud.get_book(db, book_id)
+
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    return book
 
 
 @router.post("/")
-def create_book(book: BookCreate):
+def create_book(book: BookCreate, db: Session = Depends(get_db)):
+
+    if not crud.get_category(db, book.category_id):
+        raise HTTPException(status_code=404, detail="Category not found")
+
     return crud.create_book(
+        db,
         book.title,
         book.description,
         book.price,
         book.url,
         book.category_id
     )
+
+
+@router.put("/{book_id}")
+def update_book(book_id: int, book: BookCreate, db: Session = Depends(get_db)):
+
+    if not crud.get_category(db, book.category_id):
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    result = crud.update_book(
+        db,
+        book_id,
+        book.title,
+        book.description,
+        book.price,
+        book.url,
+        book.category_id
+    )
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    return result
+
+
+@router.delete("/{book_id}")
+def delete_book(book_id: int, db: Session = Depends(get_db)):
+
+    if not crud.get_book(db, book_id):
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    crud.delete_book(db, book_id)
+
+    return {"message": "Book deleted"}
