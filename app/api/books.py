@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.db.db import get_db
 from app.db import crud
-from app.schemas import BookCreate
+from app.schemas import BookCreate, BookUpdate, BookResponse
 
 router = APIRouter(prefix="/books", tags=["Books"])
 
 
-@router.get("/")
+@router.get("/", response_model=list[BookResponse])
 def get_books(
     category_id: int | None = Query(None),
     db: Session = Depends(get_db)
@@ -16,7 +16,7 @@ def get_books(
     return crud.get_books(db, category_id)
 
 
-@router.get("/{book_id}")
+@router.get("/{book_id}", response_model=BookResponse)
 def get_book(book_id: int, db: Session = Depends(get_db)):
     book = crud.get_book(db, book_id)
 
@@ -26,7 +26,7 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
     return book
 
 
-@router.post("/")
+@router.post("/", response_model=BookResponse)
 def create_book(book: BookCreate, db: Session = Depends(get_db)):
 
     if not crud.get_category(db, book.category_id):
@@ -42,20 +42,24 @@ def create_book(book: BookCreate, db: Session = Depends(get_db)):
     )
 
 
-@router.put("/{book_id}")
-def update_book(book_id: int, book: BookCreate, db: Session = Depends(get_db)):
+@router.put("/{book_id}", response_model=BookResponse)
+def update_book(
+    book_id: int,
+    book: BookUpdate,
+    db: Session = Depends(get_db)
+):
 
     if not crud.get_category(db, book.category_id):
         raise HTTPException(status_code=404, detail="Category not found")
 
     result = crud.update_book(
-        db,
-        book_id,
-        book.title,
-        book.description,
-        book.price,
-        book.url,
-        book.category_id
+        db=db,
+        book_id=book_id,
+        title=book.title,
+        description=book.description,
+        price=book.price,
+        url=book.url,
+        category_id=book.category_id
     )
 
     if not result:
